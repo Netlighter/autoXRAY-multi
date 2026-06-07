@@ -1,6 +1,8 @@
 # autoXRAY - личный ВПН сервер
 Bash-скрипт для автоматической настройки ядра [Xray](https://github.com/XTLS/Xray-core). Предназначен для удобного получения актуальных конфигураций VPN для семейного/личного использования, настраивает selfsteal VLESS [XHTTP](https://github.com/XTLS/Xray-core/discussions/4113#discussioncomment-11468947) / [RAW](https://github.com/XTLS/REALITY/blob/main/README.en.md) REALITY.
 
+**UPD6: [autoXRAY-multi](autoXRAY-multi/README.md) — несколько клиентов с отдельными подписками и HTML (без GUI-панели).**
+
 **UPD5: Добавлена тестовая сборка для подключения MTProto proxy FakeTLS - [readme-test.md](https://github.com/xVRVx/autoXRAY/blob/main/test/readme-test.md)** 
 
 **UPD4: Основной скрипт автоматически ставит WARP-cli.** 
@@ -132,9 +134,17 @@ echo -e "y" | bash <(curl -fsSL https://gitlab.com/fscarmen/warp/-/raw/main/menu
 bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ remove --purge
 ```
 
-## Создание конфигов для нескольких пользователей
+## Несколько клиентов (autoXRAY-multi)
 
-Это не нужно, потому что одним конфигом могут пользоваться сразу несколько человек, а чтобы управлять пользователями, следить за их трафиком нужны уже gui панели: 3x-ui или Remnawave, PasarGuard.
+Раньше одним конфигом могли пользоваться несколько человек. Если нужны **отдельные подписки и страницы конфигов** на каждого (семья, друзья) без GUI-панели — используйте **[autoXRAY-multi](autoXRAY-multi/README.md)**:
+
+1. Установите стандартный `autoXRAY1.sh`.
+2. Скопируйте `autoXRAY-multi/*` в `/usr/local/etc/xray/`.
+3. Пропишите имена в `clients.txt`, запускайте `update_clients.sh`.
+
+Ссылки: `https://вашДОМЕН/имя.json` и `https://вашДОМЕН/имя.html`.
+
+Для учёта трафика и лимитов по-прежнему нужны GUI-панели: 3x-ui, Remnawave, PasarGuard.
 
 ## Смена паролей и сайта маскировки
 
