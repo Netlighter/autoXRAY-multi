@@ -1,15 +1,15 @@
-# Включённые типы конфигов: укажите номера (по одному в строке или через пробел)
+# Включённые пункты: цифры 1–7 (по одной в строке)
 # 1 — VLESS XHTTP REALITY EXTRA (для моста)
 # 2 — VLESS RAW REALITY VISION
 # 3 — VLESS RAW TLS VISION
 # 4 — VLESS XHTTP TLS EXTRA
 # 5 — VLESS gRPC TLS
 # 6 — VLESS WS TLS
-# no-socks — скрыть Socks5 в HTML (или show_socks=0 в options.conf)
-# можно: «no-socks» отдельной строкой или «1 2 3 no-socks»
+# 7 — Socks5 (TG) на HTML-странице клиента (уберите 7, чтобы скрыть)
 1
 2
 3
 4
 5
 6
+7

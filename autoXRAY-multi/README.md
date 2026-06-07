@@ -16,11 +16,10 @@ chmod +x /usr/local/etc/xray/*.sh
 | Файл | Вы правите? | Назначение |
 |------|-------------|------------|
 | `clients.txt` | да | Имена клиентов, по одному в строке |
-| `enabled_configs` | да | Цифры 1–6, опционально `no-socks` |
-| `options.conf` | да | `show_socks=0/1` |
+| `enabled_configs` | да | Цифры **1–7** (7 = Socks5 в HTML) |
 | `update_clients.sh` | запуск | Синхронизация всего |
 | `server.env` | нет | Ключи сервера (создаёт `init_server_env.sh`) |
 | `clients/*.env` | нет | UUID на клиента |
 | `clients_urls.txt` | нет | Сводка ссылок |
 
-Шаблоны `clients.txt`, `enabled_configs`, `options.conf` лежат в этой папке репозитория.
+Шаблоны `clients.txt` и `enabled_configs` лежат в этой папке репозитория.

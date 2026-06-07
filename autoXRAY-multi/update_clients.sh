@@ -18,8 +18,6 @@ export AX_DIR
 source "$SCRIPT_DIR/autoxray_lib.sh"
 
 ax_load_server_env || exit 1
-AX_SHOW_SOCKS=1
-ax_parse_options
 ax_parse_enabled_configs
 ax_parse_clients_txt
 
@@ -29,11 +27,15 @@ if [[ ${#AX_CLIENT_NAMES[@]} -eq 0 ]]; then
 fi
 
 echo -e "${YEL}Клиенты: ${AX_CLIENT_NAMES[*]}${NC}"
-echo -e "${YEL}Включённые конфиги: ${AX_ENABLED[*]}${NC}"
-if [[ "$AX_SHOW_SOCKS" -eq 1 ]]; then
-    echo -e "${YEL}Socks5 в HTML: включён${NC}"
+ax_vless_enabled=()
+for n in "${AX_ENABLED[@]}"; do
+    [[ "$n" =~ ^[1-6]$ ]] && ax_vless_enabled+=("$n")
+done
+echo -e "${YEL}Конфиги xray (1–6): ${ax_vless_enabled[*]:-нет}${NC}"
+if [[ " ${AX_ENABLED[*]} " == *" 7 "* ]]; then
+    echo -e "${YEL}Пункт 7 — Socks5 в HTML: включён${NC}"
 else
-    echo -e "${YEL}Socks5 в HTML: выключен${NC}"
+    echo -e "${YEL}Пункт 7 — Socks5 в HTML: выключен${NC}"
 fi
 
 ax_sync_client_envs
@@ -41,9 +43,8 @@ ax_patch_xray_clients
 
 # Генерация json/html для каждого клиента
 export DOMAIN WEB_PATH path_xhttp xray_publicKey_vrv xray_shortIds_vrv socksUser socksPasw
-export AX_ENABLED_JSON AX_SHOW_SOCKS
+export AX_ENABLED_JSON
 AX_ENABLED_JSON="$(printf '%s\n' "${AX_ENABLED[@]}")"
-export AX_SHOW_SOCKS="${AX_SHOW_SOCKS:-1}"
 
 python3 <<'PYGEN'
 import json, os, glob, urllib.parse
@@ -56,8 +57,8 @@ pbk = os.environ["xray_publicKey_vrv"]
 sid = os.environ["xray_shortIds_vrv"]
 socks_user = os.environ.get("socksUser", "")
 socks_pass = os.environ.get("socksPasw", "")
-show_socks = os.environ.get("AX_SHOW_SOCKS", "1") not in ("0", "false", "no")
 enabled = set(os.environ.get("AX_ENABLED_JSON", "").split())
+show_socks = "7" in enabled
 
 def load_env(path):
     d = {}

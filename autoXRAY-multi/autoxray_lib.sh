@@ -6,10 +6,7 @@ AX_CLIENTS_DIR="${AX_CLIENTS_DIR:-$AX_DIR/clients}"
 AX_SERVER_ENV="${AX_SERVER_ENV:-$AX_DIR/server.env}"
 AX_CLIENTS_TXT="${AX_CLIENTS_TXT:-$AX_DIR/clients.txt}"
 AX_ENABLED_CFG="${AX_ENABLED_CFG:-$AX_DIR/enabled_configs}"
-AX_OPTIONS_CFG="${AX_OPTIONS_CFG:-$AX_DIR/options.conf}"
 AX_XRAY_CFG="${AX_XRAY_CFG:-$AX_DIR/config.json}"
-
-AX_SHOW_SOCKS=1
 
 NGINX_SUB_MARKER_START="# AUTOXRAY_SUB_LOCATIONS_START"
 NGINX_SUB_MARKER_END="# AUTOXRAY_SUB_LOCATIONS_END"
@@ -46,62 +43,22 @@ ax_parse_clients_txt() {
     done < "$AX_CLIENTS_TXT"
 }
 
-ax_parse_options() {
-    [[ -f "$AX_OPTIONS_CFG" ]] || return 0
-    while IFS= read -r line || [[ -n "$line" ]]; do
-        line="${line//$'\r'/}"
-        ax_line_is_comment "$line" && continue
-        local chunk="${line%%#*}"
-        chunk="$(ax_trim_line "$chunk")"
-        [[ -z "$chunk" ]] && continue
-        local lower
-        lower="$(echo "$chunk" | tr '[:upper:]' '[:lower:]')"
-        case "$lower" in
-            show_socks=0|show_socks=false|show_socks=no|show_socks=off) AX_SHOW_SOCKS=0 ;;
-            show_socks=1|show_socks=true|show_socks=yes|show_socks=on) AX_SHOW_SOCKS=1 ;;
-            no-socks|nosocks|no_socks) AX_SHOW_SOCKS=0 ;;
-            socks|s) AX_SHOW_SOCKS=1 ;;
-        esac
-    done < "$AX_OPTIONS_CFG"
-}
-
-ax_line_is_comment() {
-    local line="$1"
-    line="$(ax_trim_line "$line")"
-    [[ -z "$line" || "$line" == \#* ]]
-}
-
-# no-socks в enabled_configs: отдельная строка, «1-no-socks», «1 2 no-socks» и т.п.
-ax_parse_socks_from_line() {
-    local chunk="$1"
-    local lower
-    lower="$(echo "$chunk" | tr '[:upper:]' '[:lower:]')"
-    if [[ "$lower" == *no-socks* || "$lower" == *nosocks* || "$lower" == *no_socks* ]]; then
-        AX_SHOW_SOCKS=0
-    elif [[ "$lower" == "socks" || "$lower" == "s" ]]; then
-        AX_SHOW_SOCKS=1
-    fi
-}
-
 ax_parse_enabled_configs() {
     AX_ENABLED=()
-    [[ -f "$AX_ENABLED_CFG" ]] || { AX_ENABLED=(1 2 3 4 5 6); return 0; }
+    [[ -f "$AX_ENABLED_CFG" ]] || { AX_ENABLED=(1 2 3 4 5 6 7); return 0; }
     while IFS= read -r line || [[ -n "$line" ]]; do
-        line="${line//$'\r'/}"
-        ax_line_is_comment "$line" && continue
-        local chunk="${line%%#*}"
-        chunk="$(ax_trim_line "$chunk")"
-        [[ -z "$chunk" ]] && continue
-        ax_parse_socks_from_line "$chunk"
-        local token tlower
-        for token in $(echo "$chunk" | tr ',;./+-' '     '); do
-            tlower="$(echo "$token" | tr '[:upper:]' '[:lower:]')"
-            [[ "$tlower" == "no" || "$tlower" == "socks" || "$tlower" == "nosocks" ]] && continue
-            [[ "$token" =~ ^[1-6]$ ]] && AX_ENABLED+=("$token")
+        line="$(ax_trim_line "${line//$'\r'/}")"
+        [[ -z "$line" || "$line" == \#* ]] && continue
+        line="${line%%#*}"
+        line="$(ax_trim_line "$line")"
+        [[ -z "$line" ]] && continue
+        local token
+        for token in $line; do
+            [[ "$token" =~ ^[1-7]$ ]] && AX_ENABLED+=("$token")
         done
     done < "$AX_ENABLED_CFG"
     if [[ ${#AX_ENABLED[@]} -eq 0 ]]; then
-        AX_ENABLED=(1 2 3 4 5 6)
+        AX_ENABLED=(1 2 3 4 5 6 7)
     fi
 }
 
