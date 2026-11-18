@@ -16,7 +16,7 @@ usage() {
 autoXRAY-multi ${MULTI_VERSION}
 
   install <домен>    поставить свежий autoXRAY и завести клиентов
-  enable             подключить multi к уже стоящему autoXRAY
+  enable             добавить клиентов к уже установленному autoXRAY
   add <имя>          добавить клиента
   remove <имя>       удалить клиента
   list               показать ссылки
