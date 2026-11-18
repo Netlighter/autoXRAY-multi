@@ -128,10 +128,10 @@ echo "install отказывается, если конфиг уже есть"
 if bash "$WRAP" install "$DOMAIN" >"$WORK/install.out" 2>&1; then
     fail "install должен остановиться"
 fi
-grep -q "adopt" "$WORK/install.out" || fail "install не предложил adopt"
+grep -q "enable" "$WORK/install.out" || fail "install не предложил enable"
 
-echo "adopt"
-bash "$WRAP" adopt
+echo "enable"
+bash "$WRAP" enable
 
 python3 - "$AX" "$WEB" "$NGINX" "$SEED" "$HY2" "$LEGACY" "$DOMAIN" <<'PY'
 import json, pathlib, sys
@@ -166,11 +166,11 @@ assert conf.count("# AUTOXRAY_MULTI_SUB_START") == 1
 state = json.loads((ax / "multi" / "server.json").read_text())
 assert state["path_xhttp"] == "secretpath"
 assert state["seed_uuid"] == seed
-print("adopt ok")
+print("enable ok")
 PY
 
-echo "повторный adopt не удваивает пометку"
-bash "$WRAP" adopt
+echo "повторный enable не удваивает пометку"
+bash "$WRAP" enable
 python3 - "$WEB" <<'PY'
 import json, pathlib, sys
 web = pathlib.Path(sys.argv[1])
@@ -291,7 +291,7 @@ server {
     }
 }
 EOF
-bash "$WRAP" adopt
+bash "$WRAP" enable
 python3 - "$AX" "$WEB" "$SEED" "$NEW_SEED" "$NEW_HY2" "$NEW_LEGACY" "$DOMAIN" <<'PY'
 import json, sys
 from pathlib import Path

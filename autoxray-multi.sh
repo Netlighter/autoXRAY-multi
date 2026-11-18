@@ -1,7 +1,7 @@
 #!/bin/bash
 # autoXRAY-multi — обёртка над актуальным autoXRAY2.
 # Установщик не форкается: install скачивает свежий autoXRAY2.sh,
-# adopt снимает шаблон подписки, sync размножает его по clients.txt.
+# enable подключает multi к уже стоящему серверу, sync размножает подписку по clients.txt.
 set -euo pipefail
 
 MULTI_VERSION=3
@@ -15,13 +15,14 @@ usage() {
     cat <<EOF
 autoXRAY-multi ${MULTI_VERSION}
 
-  install <домен> [--force]   скачать свежий autoXRAY2.sh, поставить, завести клиентов
-  adopt                       снять шаблон с уже стоящего autoXRAY2 и применить clients.txt
-  sync                        заново разложить клиентов из clients.txt
-  add <имя>                   добавить клиента и применить
-  remove <имя>                убрать клиента и применить
-  list                        показать ссылки
-  update-core                 обновить только бинарник Xray
+  install <домен>    поставить свежий autoXRAY и завести клиентов
+  enable             подключить multi к уже стоящему autoXRAY
+  add <имя>          добавить клиента
+  remove <имя>       удалить клиента
+  list               показать ссылки
+  sync               применить правки clients.txt или шаблона
+  update-core        обновить только бинарник Xray
+  install <домен> --force     поставить заново и сменить ключи установщика
 
 Каталог состояния: ${STATE_DIR}
 Список клиентов:   ${AX_DIR}/clients.txt
@@ -323,7 +324,7 @@ def capture(force=False):
         if not pristine:
             die(
                 "нельзя снять шаблон: в nginx уже несколько подписок или нет "
-                "исходной пары location. Верните конфиг установщика и повторите adopt"
+                "исходной пары location. Верните конфиг установщика и повторите enable"
             )
         legacy = json_locs[0]["name"]
         web_json = os.path.join(web, legacy + ".json")
@@ -367,7 +368,7 @@ def capture(force=False):
         return
 
     if not os.path.isfile(TEMPLATE_JSON) or not os.path.isfile(TEMPLATE_HTML):
-        die("шаблон не найден — выполните adopt на установке autoXRAY2")
+        die("шаблон не найден — выполните enable на установке autoXRAY2")
     log("шаблон уже есть, оставляю его")
 
 
@@ -497,7 +498,7 @@ def patch_nginx(text, block, legacy):
             if item["name"] == legacy and item["kind"] in ("json", "html")
         ]
         if not locs:
-            die(f"в nginx нет location /{legacy}.json — выполните adopt")
+            die(f"в nginx нет location /{legacy}.json — выполните enable")
         start = min(item["start"] for item in locs)
         end = max(item["end"] for item in locs)
         if end < len(text) and text[end] == "\n":
@@ -522,10 +523,10 @@ def safe_unlink(web, name):
 def sync():
     state = load_state()
     if not state:
-        die("нет снимка сервера — выполните adopt")
+        die("нет снимка сервера — выполните enable")
     for path in (TEMPLATE_JSON, TEMPLATE_HTML, LOCATION_JSON, LOCATION_HTML, CFG_PATH):
         if not os.path.isfile(path):
-            die(f"нет {path} — выполните adopt")
+            die(f"нет {path} — выполните enable")
     if not os.path.isfile(CLIENTS_TXT):
         die(f"нет {CLIENTS_TXT}")
     names = parse_clients(CLIENTS_TXT)
@@ -675,7 +676,7 @@ def sync():
 def cmd_list():
     state = load_state()
     if not state:
-        die("нет снимка сервера — выполните adopt")
+        die("нет снимка сервера — выполните enable")
     if not os.path.isfile(URLS_PATH):
         die("нет сводки — выполните sync")
     sys.stdout.write(read_text(URLS_PATH))
@@ -685,7 +686,7 @@ def cmd_check_name(name):
     if not NAME_RE.fullmatch(name):
         die(f"недопустимое имя «{name}»")
     if not os.path.isfile(CLIENTS_TXT):
-        die(f"нет {CLIENTS_TXT} — сначала adopt")
+        die(f"нет {CLIENTS_TXT} — сначала enable")
     names = parse_clients(CLIENTS_TXT)
     sub = name.lower()
     for current in names:
@@ -696,7 +697,7 @@ def cmd_check_name(name):
 def cmd_nginx_path():
     state = load_state()
     if not state or not state.get("nginx_config"):
-        die("нет снимка сервера — выполните adopt")
+        die("нет снимка сервера — выполните enable")
     sys.stdout.write(state["nginx_config"])
 
 
@@ -800,7 +801,7 @@ cmd_install() {
     need_root
     if [[ -f "$AX_DIR/config.json" && "$force" -eq 0 ]]; then
         echo "Xray уже настроен ($AX_DIR/config.json)." >&2
-        echo "Наложить клиентов: adopt. Полная переустановка со сменой ключей: install --force $domain" >&2
+        echo "Подключить multi: enable. Переустановка со сменой ключей: install --force $domain" >&2
         exit 1
     fi
     if [[ -n "${AUTOXRAY_SCRIPT:-}" ]]; then
@@ -885,7 +886,7 @@ main() {
     fi
     case "$cmd" in
         install) cmd_install "$@" ;;
-        adopt) cmd_adopt "$@" ;;
+        enable|adopt) cmd_adopt "$@" ;;
         sync) cmd_sync "$@" ;;
         add) cmd_add "$@" ;;
         remove) cmd_remove "$@" ;;
