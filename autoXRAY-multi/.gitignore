@@ -1,0 +1,10 @@
+# Состояние, которое появляется на сервере после adopt/sync
+server.json
+template.json
+template.html
+location.json
+location.html
+clients/
+generated.json
+clients_urls.txt
+*.multi-bak
