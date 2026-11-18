@@ -1,0 +1,12 @@
+.DS_Store
+
+# Состояние, если скрипт запускали прямо из каталога репозитория
+server.json
+template.json
+template.html
+location.json
+location.html
+clients/
+generated.json
+clients_urls.txt
+*.multi-bak

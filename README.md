@@ -1,281 +1,134 @@
-## 🛡️ autoXRAY - личный VPN-сервер
-Bash-скрипт для автоматической настройки ядра [Xray](https://github.com/XTLS/Xray-core). Позволяет быстро получить актуальные конфигурации VPN для личного или семейного использования.
+# autoXRAY-multi
 
-Форк **autoXRAY-multi** не хранит свою копию установщика. Он скачивает свежий [autoXRAY2.sh](https://github.com/xVRVx/autoXRAY), а сверху выдаёт каждому клиенту свою подписку. Меню конфигов 1–7 убрано: профили берутся из того, что собрал установщик. Полная инструкция — [autoXRAY-multi/README.md](autoXRAY-multi/README.md).
+Обёртка над актуальным [autoXRAY](https://github.com/xVRVx/autoXRAY). Своего установщика здесь нет: при установке скачивается свежий `autoXRAY2.sh`, он поднимает сервер, а multi копирует уже готовую подписку каждому клиенту.
 
-### ✨ Что вы получите 
+Выбор VPS, домен, мост RU → EU, WARP и удаление базового стека описаны в [README оригинала](https://github.com/xVRVx/autoXRAY/blob/main/README.md).
 
-* **4 протокола на порту 443:** `VLESS XHTTP TLS`, `VLESS RAW TLS VISION`, `Hysteria2` и `Web Proxy TG`(по желанию)
-* **Умная подписка:** авто-роутинг (RU напрямую, реклама и трекеры заблокированы)
-* **Веб-страница сервера:** готовые ссылки для клиентов и QR-коды для смартфона
-* **Страница маскировки:** с защитой от active probing
+## Суть
 
-## 📌 Что нового
+Multi не ставит свой Xray и не держит копию скриптов оригинала. `install` скачивает текущий [autoXRAY2.sh](https://github.com/xVRVx/autoXRAY/blob/main/autoXRAY2.sh) и запускает его как есть: те же вопросы про fingerprint и Telegram Web Proxy, тот же Nginx, сертификат и `config.json`.
 
-| Обновление | Суть |
-|:--|:--|
-| **multi** | Отдельные подписки поверх свежего autoXRAY2. Старые пункты конфигов 1–7 больше не используются |
-| **UPD6** | Ядро переведено на `v26.11.9` — обновите клиентские приложения |
-| **UPD5** | Добавлен caddyBridge.sh - мост xhttp без xray, только caddy  |
-| **UPD4** | Все инбаунды переведены на **443** порт |
-| **UPD3** | Добавлен **Web Proxy TG** |
-| **UPD2** | Описание неактуальных скриптов → [old/oldScriptReadme.md](old/oldScriptReadme.md) |
-| **UPD1** | Добавлен раздел [«Мост RU → EU»](#bridge) |
+Установщик создаёт одну подписку со случайным путём, например `https://домен/AbCdEf….json`, и одного пользователя. Обёртка забирает эту подписку как образец и больше не собирает протоколы сама.
 
----
+Дальше для каждого имени из `clients.txt` меняются только три вещи:
 
-<a id="install"></a>
-## 🚀 Быстрый старт
+- UUID;
+- пароль Hysteria2;
+- путь ссылки.
 
-Для установки надо [арендовать VPS](#servers), [получить домен](#domain) и запустить обёртку. Она скачает свежий autoXRAY2, задаст его вопросы и заведёт клиента `default`.
+Первый клиент, обычно `default`, получает ключи, которые только что выдал установщик. Поэтому напечатанная им ссылка продолжает открывать подписку `default`. У `alice` будут `https://домен/alice.json` и `https://домен/alice.html`.
+
+В `config.json` те же люди дописываются во все VLESS-входы. Если у образца был `flow` (RAW TLS VISION), он сохраняется. У XHTTP его нет. У Hysteria2 у каждого свой пароль.
+
+Сейчас установщик поднимает на 443 порту VLESS XHTTP TLS, VLESS RAW TLS VISION, Hysteria2 и по желанию Telegram Web Proxy. Этот список в обёртку не зашит. Что оказалось в подписке после установки, то и получат клиенты. Когда автор autoXRAY поменяет набор, новая установка подхватит его без правки multi.
+
+## Пункты 1–7 больше не используются
+
+Раньше отдельное меню включало и выключало конфиги номерами: REALITY, gRPC, WS, порт 8443, Socks5. Этого набора в текущем autoXRAY2 нет, поэтому меню убрано.
+
+Профиль есть у клиента, если он есть в шаблоне подписки. Лишний убирается в `/usr/local/etc/xray/multi/template.json`, после этого нужен `sync`. Исходный UUID внутри шаблона не заменять: обёртка подставляет клиентские UUID сама.
+
+## Установка
+
+Нужны чистый Debian 12/13, root и домен, чья A-запись уже смотрит на VPS. Требования к серверу и домену — в [README оригинала](https://github.com/xVRVx/autoXRAY/blob/main/README.md).
 
 ```bash
 install -d /usr/local/etc/xray
-curl -fsSL https://raw.githubusercontent.com/Netlighter/autoXRAY-multi/main/autoXRAY-multi/autoxray-multi.sh \
+curl -fsSL https://raw.githubusercontent.com/Netlighter/autoXRAY-multi/main/autoxray-multi.sh \
   -o /usr/local/etc/xray/autoxray-multi.sh
 chmod +x /usr/local/etc/xray/autoxray-multi.sh
 /usr/local/etc/xray/autoxray-multi.sh install вашДОМЕН.com
 ```
 
-Один общий конфиг на всех, как в оригинале:
+Скрипт скачивает свежий autoXRAY2, задаёт его вопросы, ставит сервер, снимает шаблон и заводит клиента `default`.
+
+Повторный `install` без `--force` останавливается: полная переустановка заново выпускает ключи установщика. Свой файл установщика вместо скачивания:
 
 ```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/xVRVx/autoXRAY/main/autoXRAY2.sh)" -- вашДОМЕН.com
+AUTOXRAY_SCRIPT=/path/autoXRAY2.sh /usr/local/etc/xray/autoxray-multi.sh install вашДОМЕН.com
 ```
 
-Установщик сам поставит Xray и Nginx, выпустит TLS-сертификат, сгенерирует UUID и пароли, поднимет сайт-маскировку и выдаст ссылки. Как из этой установки сделать отдельных клиентов — в [инструкции multi](autoXRAY-multi/README.md).
+## Сервер уже стоит
 
----
+Если autoXRAY2 уже установлен и нужен только список клиентов:
 
-## 📋 Требования
+```bash
+/usr/local/etc/xray/autoxray-multi.sh adopt
+```
 
-| Параметр | Значение |
+Команда снимает шаблон с живого сервера и применяет `clients.txt`. Если списка ещё нет, создаётся `default` с уже выданными ключами. Исходная ссылка установщика при этом не ломается.
+
+## Возможности
+
+| Команда | Что делает |
 |:--|:--|
-| **ОС** | Чистый **Debian 12 / 13** (Ubuntu работает, но скрипт предупредит) |
-| **Сервер** | VPS с собственным IP, чистая система с root доступом |
-| **Домен** | Свой домен **или бесплатный поддомен**, A-запись → IP сервера |
-| **Порты** | `80` (ACME) и `443` (всё остальное) должны быть свободны |
-| **Время** | ~5 минут на установку |
-
-
----
-<a id="servers"></a>
-## 🖥️ Выбор сервера
-
-Подбирал строго **без KYC** (*Know Your Customer* — обязательная верификация личности: паспорт, телефон, карта).
-
-### 🇪🇺 EU — самые стабильные (DE / NL)
-
-| Провайдер | Локации | Цена | Комментарий |
-|:--|:--|:--|:--|
-| [XorekCloud](https://xorek.cloud/?from=28522) | DE / NL | от 149 ₽ | Оплата рублями |
-| [netgrid](https://netgrid.host/ru?from=5893) | DE / NL / CZ / PL / USA и др. | от 3 € | Большой выбор локаций |
-| [hostoff](https://hostoff.net/vps?ref=CODE197DF457) | DE / NL / PL | от 5 € | Хороший канал |
-| [notbad](https://my.notbad.cloud/?from=188) | DE / NL | от 4 $ | Оплата рублями, хороший курс и канал |
-| [senko.digital](https://senko.digital/?ref=47670) | DE / NL / FI | от 2 € | DNS-хостинг + домены, оплата СБП |
-| [serv.host](https://serv.host/?from=44424) | RU / DE / NL / FI и др. | от 360 ₽/мес | — |
-
-> [!TIP]
-> Если брать **NL-локацию**, есть шанс «урвать» VPS без рекламы на YouTube.
-
-### 🇷🇺 RU — для моста
-
-| Провайдер | Цена | Комментарий |
-|:--|:--|:--|
-| [CloudCore](https://cloudcore.ru/?affiliate_uuid=e9ad7432-7898-4de2-8606-38eb90e0c1a6) | от 100 ₽/мес | — |
-| [time-host](https://time-host.net/?from=47217) | от 140 ₽/мес | — |
-| [hosting-russia](https://hosting-russia.ru/?p=57731) | от 250 ₽/мес | Запрещен ВПН! Подходит только для caddyBridge.sh |
-
-> [!NOTE]
-> Промо-тарифы постоянно заканчиваются и, как правило, сильно урезаны по ресурсам.
-
-> [!WARNING]
-> Подсети и ip популярных хостинг-провайдеров заблокированы РКН. К ним порой даже невозможно подключиться по SSH без VPN. С недавних пор это лотерея, так что имейте это ввиду.
----
-<a id="domain"></a>
-## 🌐 Получаем домен
-
-### 🆓 Бесплатный поддомен
-
-1. Зарегистрируйтесь в [cloudns](https://www.cloudns.net/aff/id/1919804/)
-2. **Управление → DNS Хостинг → Создать зону → Свободная зона** → введите случайное имя поддомена
-3. Создайте A-запись: **Новая запись → Тип А → Хост (имя субдомена) → Указывает на (IP адрес вашего VPS)**
-
-Альтернативы: [duckdns.org](https://www.duckdns.org/) · [freedns.afraid.org](https://freedns.afraid.org/)
-
-### 💳 Платный домен + бесплатный DNS-хостинг
-
-[senko.digital](https://senko.digital/?ref=47670) — здесь же можно арендовать промо-VPS. Платные домены, как правило, работают стабильнее бесплатных поддоменов.
-
-> [!IMPORTANT]
-> DNS-записи обновляются **не сразу**: иногда 15 минут, иногда — час и более. Проверить: [xseo.in/dns](https://xseo.in/dns).
-
----
-
-
-## 📱 Подключение клиентов
-
-Скопируйте **ссылку на подписку** со странички подписки в приложение:
-
-| ОС | Поддерживают подписку | Только `vless://` / конфиг для роутера |
-|:--|:--|:--|
-| **iOS / macOS** | [Happ](https://www.happ.su/main/ru) · [v2rayTun](https://v2raytun.com/) | FoXray, Hiddify |
-| **Android** | [Happ](https://www.happ.su/main/ru) · [v2rayTun](https://v2raytun.com/) | v2rayNG, SimpleXray |
-| **Windows** | [Happ](https://www.happ.su/main/ru) · [winLoadXray](https://github.com/xVRXx/winLoadXRAY/releases/latest/download/winLoadXRAY.exe) · [v2rayN](https://github.com/2dust/v2rayN/releases/) | v2rayTun, Throne, Hiddify |
-| **Linux** | [Happ](https://www.happ.su/main/ru) · [v2rayN](https://github.com/2dust/v2rayN/releases/) | Throne, Hiddify |
-
-> [!NOTE]
-> В Happ маршрутизация **встроенная** — выключите её, если включали сторонние сервисы. Подписка добавляется кнопкой «⚡ Add to HAPP».
-
----
-
-## 🔄 Обновление
-
-### 🔹 Только ядро Xray
-
-```bash
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ install
-```
-
-### 🔹 Весь скрипт
-
-| Что используете | Что делать |
-|:--|:--|
-| **Подписку** | Запомните её ссылку → переустановите скрипт → в новой папке `/var/www/домен/xxxXXXxxx.json` поменяйте путь на старый → после этого обновите подписку в приложении |
-| **Только ключи** | Такой возможности нет. P.S.: удобно воспользоваться QR-кодом для переноса на мобильное устройство |
-| **Несколько клиентов** | Ядро: `autoxray-multi.sh update-core`. После полной переустановки autoXRAY2 верните людей командой `adopt` и сверьте ссылки через `list` |
-
----
-
-## 🧹 Удаление
-
-**🔹 Удаляем nginx & acme**
-
-```bash
-systemctl disable nginx; systemctl stop nginx; apt remove nginx -y; ~/.acme.sh/acme.sh --uninstall 2>/dev/null; rm -rf /root/.acme.sh /var/lib/xray
-```
-
-**🔹 Удаляем Xray**
-
-```bash
-bash -c "$(curl -L https://github.com/XTLS/Xray-install/raw/main/install-release.sh)" @ remove --purge
-```
-
-**🔹 Удаляем web-proxy**
-
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/xVRVx/autoXRAY/refs/heads/main/test/telegram/web-proxy-uninstal.sh)"
-```
-
----
-<a id="bridge"></a>
-## 🌉 Мост RU → EU
-
-Многие сталкиваются с блокировками хостинг-сетей по TLS (особенно на мобильном интернете). Решение — мост между серверами в разных локациях.
-
-**1)** На заблокированный чистый VPS ставим стандартный рекомендованный скрипт и берём получившийся **VLESS XHTTP TLS EXTRA**:
-
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/xVRVx/autoXRAY/main/autoXRAY2.sh)" -- поддомен1.вашДОМЕН.com
-```
-
-**2)** На RU-VPS ставим скрипт моста (нужен именно `vless XHTTP TLS`):
-
-Тут два варианта теперь есть, первый с ядром xray на борту:
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/xVRVx/autoXRAY/main/bridgeTLSxhttp.sh)" -- поддомен2.вашДОМЕН.com "vless://вашКонфигXHTTP"
-```
-Второй (там где установка ВПН запрещена - чисто перенаправление трафика xhttp на caddy, гипервизор не увидит никаких подозрительных процессов и бинарников):
-```bash
-bash -c "$(curl -L https://raw.githubusercontent.com/xVRVx/autoXRAY/main/caddyBridge.sh)" -- поддомен2.вашДОМЕН.com "vless://вашКонфигXHTTP"
-```
-
-Итоговая цепочка:
-
-```
-клиент → RU VPS → EU VPS → зарубежный сайт
-```
-
-Можно использовать несколько XHTTP-конфигов — все они будут добавлены в мост:
-
--- поддомен2.Домен.Ком "vless://xhttp1" "vless://xhttp2" "vless://xhttp3"
-
-
----
-
-## 🔐 Повышенная маскировка
-
-**Настоятельно рекомендуется:**
-
-- сменить порт SSH со стандартного `22` на другой и/или сделать вход по ключу;
-- настроить файрвол и оставить открытыми: ваш SSH-порт, `80` (ACME), `443` (всё остальное).
-- использовать клиентский конфиг - он оставляет RU трафик в вашей сети, а EU отправляет дальше в ваш VPS.
-- лучше всего настраивать раздельное туннелирование приложений на андройде и использовать отдельный браузер для VPN на ПК
-- не устанавливать нативные RU приложения на ПК (Я.Браузер, МАКС, Алиса) т.к. там нет виртуализации и они будут шпионить за вами и вашими соединениями
-- если нужен МАКС по работе - используйте веб версию и отдельный браузер только для него, например, оперу
-
-### Ручная настройка Xray
-
-Если хотите углубиться в конфигурацию Xray — есть отличный [справочник](https://xtls.github.io/ru/config/outbounds/vless.html) и [руководство](https://github.com/XTLS/Xray-core/discussions/3518).
-
-Редактировать конфиг: **`/usr/local/etc/xray/config.json`**
-
-После изменений ядро надо перезапустить: **`systemctl restart xray`**
-
----
-
-## 📨 Telegram Web Proxy
-
-В связи с начавшейся блокировкой Telegram выпущена сборка с **web proxy** на порту 443 и маскировкой под собственный сайт.
-
-**Принцип работы:**
-
-```
-443 XRAY → tproxy-server → MTP TELEMT
-```
-
-**Конфигурации:**
-
-| Файл | Назначение |
-|:--|:--|
-| `/etc/telemt/telemt.toml` | Настройки TeleMT |
-| `/etc/tproxy-server/config.json` | Конфиг tproxy-сервера |
-| `/etc/tproxy-server/profiles.json` | Профили прокси |
-
-При установке скрипт спросит, нужен ли web proxy — отвечайте `y`, если он вам нужен.
-
----
-
-## 🧩 Можно поставить WARP
-
-Инструкция по установке - [warp-readme.md](test/warp/warp-readme.md).
-
----
-
-## ❓ Прочее
-
-### 👥 Конфиги для нескольких пользователей
-
-Обёртка [autoXRAY-multi](autoXRAY-multi/README.md) не выбирает протоколы сама и не использует старые пункты 1–7. Свежий autoXRAY2 собирает подписку, а multi копирует её каждому имени из `/usr/local/etc/xray/clients.txt`.
-
-У человека свои UUID, пароль Hysteria2 и ссылки `/имя.json` и `/имя.html`. Ссылка, которую напечатал установщик, остаётся у первого клиента. Telegram Web Proxy, если он включён, общий. Трафик по пользователям обёртка не считает — для этого нужны **3x-ui**, **RemnaWave** или **PasarGuard**.
+| `install <домен>` | Скачать свежий autoXRAY2, поставить сервер, завести клиентов |
+| `install <домен> --force` | Поставить заново, даже если конфиг уже есть |
+| `adopt` | Снять шаблон с уже стоящего autoXRAY2 и разложить клиентов |
+| `sync` | Заново применить `clients.txt` и шаблон |
+| `add <имя>` | Добавить клиента и сразу выдать ему ссылки |
+| `remove <имя>` | Удалить клиента, его файлы и доступ |
+| `list` | Показать подписки, страницы, UUID и пароли Hysteria2 |
+| `update-core` | Обновить только бинарник Xray, не трогая ключи и шаблон |
+
+Имя клиента: латиница, цифры, `_` и `-`. В ссылке оно всегда в нижнем регистре, поэтому `Alice` и `alice` — один и тот же путь. Последнего клиента удалить нельзя: сервер не остаётся без пользователей.
 
 ```bash
 /usr/local/etc/xray/autoxray-multi.sh add alice
+/usr/local/etc/xray/autoxray-multi.sh remove alice
+/usr/local/etc/xray/autoxray-multi.sh list
+/usr/local/etc/xray/autoxray-multi.sh sync
+```
+
+`sync` нужен после ручной правки `clients.txt` или шаблона. Он заново собирает JSON и HTML, правит клиентов в `config.json` и дописывает `location` в nginx с теми заголовками Happ, которые записал установщик.
+
+### Ссылки
+
+| Клиент | Подписка | Страница |
+|:--|:--|:--|
+| первый, обычно `default` | `https://домен/<случайный-путь>.json` и `https://домен/default.json` | те же пути с `.html` |
+| остальные | `https://домен/<имя>.json` | `https://домен/<имя>.html` |
+
+В подписке лежит клиентский JSON с роутингом из установщика. На HTML-странице те же ссылки и QR плюс имя клиента.
+
+Telegram Web Proxy, если его включили при установке, один на всех. Это сервис сервера, не пароль человека.
+
+### Что можно править
+
+| Файл | Править | Зачем |
+|:--|:--|:--|
+| `/usr/local/etc/xray/clients.txt` | да | имена, по одному в строке |
+| `/usr/local/etc/xray/multi/template.json` | если нужно убрать профиль | образец подписки. Исходный UUID не менять |
+| `/usr/local/etc/xray/multi/template.html` | нет | страница, снятая с установщика |
+| `/usr/local/etc/xray/multi/clients/<имя>.json` | нет | UUID и пароль Hysteria2 этого клиента |
+| `/usr/local/etc/xray/multi/server.json` | нет | домен, исходный путь подписки и исходные ключи |
+| `/usr/local/etc/xray/config.json` | маршруты и сайт | массивы `clients` перезаписывает `sync` |
+| `/usr/local/etc/xray/clients_urls.txt` | нет | последняя сводка ссылок |
+
+После правки шаблона или списка снова запустите `sync`.
+
+## Обновление
+
+Только ядро Xray, без смены ключей и шаблона:
+
+```bash
+/usr/local/etc/xray/autoxray-multi.sh update-core
+```
+
+Это официальный установщик XTLS и актуальный релиз. Версию, с которой собран текущий autoXRAY2, выбирает сам установщик во время `install`.
+
+Если заново запустили `autoXRAY2.sh` и он перезаписал конфиг и nginx, верните клиентов так:
+
+```bash
+/usr/local/etc/xray/autoxray-multi.sh adopt
 /usr/local/etc/xray/autoxray-multi.sh list
 ```
 
-Мост `bridgeTLSxhttp.sh` и `caddyBridge.sh` эта обёртка не настраивает.
+UUID в `multi/clients/` сохраняются, шаблон снимается заново. Ключи, которые установщик напечатал в этом прогоне, не используются. Новый случайный путь становится ещё одной ссылкой первого клиента. Актуальные адреса показывает `list`.
 
-### 🔑 Смена паролей и сайта маскировки
+## Чего обёртка не делает
 
-Запустите скрипт заново — он сформирует новые конфигурации VPN, новые UUID, ключи и пароли, перегенерирует сайт маскировки. Если на сервере уже есть клиенты multi, после этого выполните `autoxray-multi.sh adopt`: их UUID сохранятся, а новая ссылка установщика станет ещё одним адресом первого клиента. Ключи, напечатанные этим запуском, не используются. Актуальные адреса показывает `list`.
-
----
-
-Скрипты будут дорабатываться до актуального состояния.
-
-**Поддержать автора.**
-
-USDT TRC20: TGSCTXBHXZLiJneTskmCY3TCezQnJ1wNEp
-
+- не считает трафик и не отключает клиента по лимиту; для этого нужны 3x-ui, RemnaWave или PasarGuard;
+- не ставит мост RU → EU и не настраивает `bridgeTLSxhttp.sh` или `caddyBridge.sh` — они остаются в [оригинале](https://github.com/xVRVx/autoXRAY);
+- не выпускает отдельный Telegram Web Proxy на каждого клиента;
+- не переживает ручную замену UUID внутри `template.json`: после этого `sync` останавливается.
